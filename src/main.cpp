@@ -1,8 +1,12 @@
 #include <Arduino.h>
 #include <mavlink.h>
+#include "mavlink_msg_distance_sensor.h"
 
 void Mav_Request_Data();
 void comm_receive();
+void command_distance(int8_t orient ,uint16_t rngDist);
+void command_heartbeat();
+//void command_distance();
 
 #define RxPin0 9
 #define TxPin0 10
@@ -35,69 +39,20 @@ int time;
 int distance; 
 
 void setup() {
-  /*
-          Serial.begin (57600); 
-
-        pinMode (trigger_pin, OUTPUT); 
-
-        pinMode (echo_pin, INPUT);
-
-          pinMode(LED_BUILTIN, OUTPUT);
-
-*/
-
-
   pinMode(RxPin0, INPUT);
   pinMode(TxPin0, OUTPUT);
 
-  // MAVLink interface start
-   Serial.begin(57600);
+  Serial.begin(57600);
 
   #ifdef SOFT_SERIAL_DEBUGGING
-    // [DEB] Soft serial port start
     Serial.begin(57600);
     pxSerial.begin(57600);
     Serial.println("MAVLink starting.");
   #endif
- //Mav_Request_Data();
 }
 
 void loop() {
-  /*
-   digitalWrite (trigger_pin, HIGH);
-
-    delayMicroseconds (10);
-
-    digitalWrite (trigger_pin, LOW);
-
-    time = pulseIn (echo_pin, HIGH);
-
-    distance = ((time * 0.034) / 2)+1;
-
-    
-
-  //if (distance <= 10) 
-
-    //    {
-
-     //   Serial.println (" Door Open ");
-
-      //  Serial.print (" Distance= ");              
-
-        Serial.println (distance);        
-
-        //digitalWrite (buzzer_pin, HIGH);
-
-       // delay (500);
-
-          digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);                       // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-*/
-//------------------------------------------------
-
-
-
+/*
   // MAVLink
 
   int sysid = 1;                   ///< ID 20 for this airplane. 1 PX, 255 ground station
@@ -136,10 +91,6 @@ void loop() {
       Serial.write(buf, len);
     #endif
 
-    //Mav_Request_Data();
-    //Serial.println(num_hbs_pasados);
-      //Serial.println(request);
-     //  Serial.println(receive);
     num_hbs_pasados++;
     if (num_hbs_pasados >= num_hbs) {
       
@@ -155,39 +106,47 @@ void loop() {
 
   }
 
+  */
+command_heartbeat();
   // Check reception buffer
   comm_receive();
 
+//uint16_t distance = 10; 
+//uint8_t orient = 1;
+// distance= ((uint16_t)((byteLow) + (byteHigh*256))/scale);
+
+ //command_distance(orient ,distance);
+}
+
+void command_heartbeat() {
+  int sysid = 100;                            //< ID 1 for this system               
+  int compid = MAV_COMP_ID_PATHPLANNER;       //< The component sending the message.
+  uint8_t system_type =MAV_TYPE_GCS;         // Define the system type, in this case ground control station
+  uint8_t autopilot_type = MAV_AUTOPILOT_INVALID;
+  uint8_t system_mode = 0; 
+  uint32_t custom_mode = 0;                
+  uint8_t system_state = 0;
+  
+  // Initialize the required buffers
+  mavlink_message_t msg;
+  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+  
+  // Pack the message
+  mavlink_msg_heartbeat_pack(sysid,compid, &msg, system_type, autopilot_type, system_mode, custom_mode, system_state);
+  
+  // Copy the message to the send buffer
+  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+  
+  // Send the message 
+  //Serial.write(buf, len);
 }
 
 void Mav_Request_Data()
 {
-
   request = request + 1;
 
   mavlink_message_t msg;
   uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-
-
-  // STREAMS that can be requested
-  /*
-     Definitions are in common.h: enum MAV_DATA_STREAM
-
-     MAV_DATA_STREAM_ALL=0, // Enable all data streams
-     MAV_DATA_STREAM_RAW_SENSORS=1, /* Enable IMU_RAW, GPS_RAW, GPS_STATUS packets.
-     MAV_DATA_STREAM_EXTENDED_STATUS=2, /* Enable GPS_STATUS, CONTROL_STATUS, AUX_STATUS
-     MAV_DATA_STREAM_RC_CHANNELS=3, /* Enable RC_CHANNELS_SCALED, RC_CHANNELS_RAW, SERVO_OUTPUT_RAW
-     MAV_DATA_STREAM_RAW_CONTROLLER=4, /* Enable ATTITUDE_CONTROLLER_OUTPUT, POSITION_CONTROLLER_OUTPUT, NAV_CONTROLLER_OUTPUT.
-     MAV_DATA_STREAM_POSITION=6, /* Enable LOCAL_POSITION, GLOBAL_POSITION/GLOBAL_POSITION_INT messages.
-     MAV_DATA_STREAM_EXTRA1=10, /* Dependent on the autopilot
-     MAV_DATA_STREAM_EXTRA2=11, /* Dependent on the autopilot
-     MAV_DATA_STREAM_EXTRA3=12, /* Dependent on the autopilot
-     MAV_DATA_STREAM_ENUM_END=13,
-
-     Data in PixHawk available in:
-      - Battery, amperage and voltage (SYS_STATUS) in MAV_DATA_STREAM_EXTENDED_STATUS
-      - Gyro info (IMU_SCALED) in MAV_DATA_STREAM_EXTRA1
-  */
 
   // To be setup according to the needed information to be requested from the Pixhawk
   const int  maxStreams = 2;
@@ -196,18 +155,6 @@ void Mav_Request_Data()
 
 
   for (int i = 0; i < maxStreams; i++) {
-    /*
-       mavlink_msg_request_data_stream_pack(system_id, component_id,
-          &msg,
-          target_system, target_component,
-          MAV_DATA_STREAM_POSITION, 10000000, 1);
-
-       mavlink_msg_request_data_stream_pack(uint8_t system_id, uint8_t component_id,
-          mavlink_message_t* msg,
-          uint8_t target_system, uint8_t target_component, uint8_t req_stream_id,
-          uint16_t req_message_rate, uint8_t start_stop)
-
-    */
     mavlink_msg_request_data_stream_pack(2, 200, &msg, 1, 0, MAVStreams[i], MAVRates[i], 1);
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
     #ifdef SOFT_SERIAL_DEBUGGING
@@ -221,14 +168,45 @@ void Mav_Request_Data()
 
 void comm_receive() {
 
-  receive = receive + 1;
+  int sysid = 1;                   
+  //< The component sending the message.
+  int compid = 158;    
 
+  uint32_t time_boot_ms = 0; /*< Time since system boot*/
+  uint16_t min_distance = 30; /*< Minimum distance the sensor can measure in centimeters*/
+  uint16_t max_distance = 900; /*< Maximum distance the sensor can measure in centimeters*/
+  uint16_t current_distance = 10; /*< Current distance reading*/
+  uint8_t type = 0; /*< Type from MAV_DISTANCE_SENSOR enum.*/
+  uint8_t id = 1; /*< Onboard ID of the sensor*/
+  uint8_t orientation = 0; /*(0=forward, each increment is 45degrees more in clockwise direction), 24 (upwards) or 25 (downwards)*/
+// Consumed within ArduPilot by the proximity class
+  uint8_t covariance = 0; /*< Measurement covariance in centimeters, 0 for unknown / invalid readings*/
+
+
+  // Initialize the required buffers
   mavlink_message_t msg;
-  mavlink_status_t status;
+  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+
+  // Pack the message
+  mavlink_msg_distance_sensor_pack(sysid,compid,&msg,time_boot_ms,min_distance,max_distance,current_distance,type,id,orientation,covariance);
+
+  // Copy the message to the send buffer
+  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+  // Send the message (.write sends as bytes) 
+  pxSerial.write(buf, len);
+
+//------------------------------
+
+
+ 
+ // receive = receive + 1;
+
+ // mavlink_message_t msg;
+ // mavlink_status_t status;
 
   // Echo for manual debugging
   // Serial.println("---Start---");
-
+/*
   #ifdef SOFT_SERIAL_DEBUGGING
     while (pxSerial.available() > 0) {
       uint8_t c = pxSerial.read();
@@ -264,26 +242,10 @@ void comm_receive() {
               Serial.print("GPS Speed: ");Serial.println(packet.vel);
               Serial.print("Sats Visible: ");Serial.println(packet.satellites_visible);
             #endif
-      
-            /*
-            mavlink_gps_raw_int_t packet;
-            mavlink_msg_gps_raw_int_decode(&msg, &packet);
-            
-            #ifdef SOFT_SERIAL_DEBUGGING
-              Serial.print("\nGPS Fix: ");Serial.println(packet.fix_type);
-              Serial.print("GPS Latitude: ");Serial.println(packet.lat);
-              Serial.print("GPS Longitude: ");Serial.println(packet.lon);
-              Serial.print("GPS Speed: ");Serial.println(packet.vel);
-              Serial.print("Sats Visible: ");Serial.println(packet.satellites_visible);
-            #endif
-            */
           }
 
         case MAVLINK_MSG_ID_ATTITUDE:  // #30
           {
-            /* Message decoding: PRIMITIVE
-                  mavlink_msg_attitude_decode(const mavlink_message_t* msg, mavlink_attitude_t* attitude)
-            */
             mavlink_attitude_t attitude;
             mavlink_msg_attitude_decode(&msg, &attitude);
             
@@ -303,5 +265,39 @@ void comm_receive() {
       } 
    }
   }
- // delay(500);
+ */
+}
+
+
+void command_distance(uint8_t orient ,uint16_t rngDist) {
+  //MAVLINK DISTANCE MESSAGE
+  int sysid = 1;                   
+  //< The component sending the message.
+  int compid = 158;    
+
+  uint32_t time_boot_ms = 0; /*< Time since system boot*/
+  uint16_t min_distance = 30; /*< Minimum distance the sensor can measure in centimeters*/
+  uint16_t max_distance = 900; /*< Maximum distance the sensor can measure in centimeters*/
+  uint16_t current_distance = rngDist; /*< Current distance reading*/
+  uint8_t type = 0; /*< Type from MAV_DISTANCE_SENSOR enum.*/
+  uint8_t id = 1; /*< Onboard ID of the sensor*/
+  uint8_t orientation = orient; /*(0=forward, each increment is 45degrees more in clockwise direction), 24 (upwards) or 25 (downwards)*/
+// Consumed within ArduPilot by the proximity class
+  uint8_t covariance = 0; /*< Measurement covariance in centimeters, 0 for unknown / invalid readings*/
+
+
+  // Initialize the required buffers
+  mavlink_message_t msg;
+  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+
+  // Pack the message
+ mavlink_msg_distance_sensor_pack(sysid,compid,&msg,time_boot_ms,min_distance,max_distance,current_distance,type,id,orientation,covariance);
+
+  // Copy the message to the send buffer
+  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+  // Send the message (.write sends as bytes) 
+  Serial.write(buf, len);
+ // Serial.print (orientation);
+  //Serial.print (" - ");
+  //Serial.println (current_distance);
 }
